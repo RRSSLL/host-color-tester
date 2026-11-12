@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Host Set Color Tester</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* One visual world: a neutral grey surround, like a grading suite, so the page never tints the colors being judged.
+     Layout: big 16:9 preview with checks and saved looks underneath, color controls in a right-hand rail. */
+  --surround: #202020;
+  --panel: #292929;
+  --raised: #333333;
+  --line: #404040;
+  --text: #ececec;
+  --muted: #a3a3a3;
+  --good: #62c084;
+  --warn: #e2b54e;
+  --bad: #e8695c;
+  --display: "Poppins", "Helvetica Neue", Arial, sans-serif;
+  --body: "Poppins", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--surround);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+.app {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 20px 24px 36px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 344px;
+  grid-template-areas:
+    "head head"
+    "stage rail"
+    "below rail";
+  gap: 18px 24px;
+  align-items: start;
+}
+header { grid-area: head; display: grid; gap: 2px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); max-width: 72ch; }
+h2 { font-family: var(--display); font-size: 14px; font-weight: 600; margin: 0; text-wrap: balance; }
+
+/* Stage */
+.stage { grid-area: stage; display: grid; gap: 12px; min-width: 0; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.toolbar .actions { display: flex; gap: 10px; margin-left: auto; }
+.codes-wrap { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.linkbtn {
+  border: 0; background: none; padding: 2px 0; font-size: 12px; font-weight: 600; color: var(--text);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #666;
+}
+.linkbtn:hover { text-decoration-color: var(--text); }
+.seg {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+}
+.seg button, .toggle {
+  border: 0; background: transparent; border-radius: 7px;
+  padding: 6px 11px; font-size: 13px; font-weight: 500; color: var(--muted);
+  white-space: nowrap;
+}
+.seg button:hover, .toggle:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--text); color: #161616; }
+.toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;
+}
+.toggle .knob {
+  width: 26px; height: 15px; border-radius: 99px; background: #555; position: relative; flex: none;
+  transition: background .15s;
+}
+.toggle .knob::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
+  background: #ddd; transition: transform .15s;
+}
+.toggle[aria-pressed="true"] { color: var(--text); }
+.toggle[aria-pressed="true"] .knob { background: var(--good); }
+.toggle[aria-pressed="true"] .knob::after { transform: translateX(11px); background: #fff; }
+
+.btn {
+  border: 1px solid var(--line); background: var(--raised); color: var(--text);
+  font-size: 13px; font-weight: 600; padding: 8px 14px;
+  /* Verbatim speech-bubble corner: three rounded, square bottom-left */
+  border-radius: 12px 12px 12px 0;
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+}
+.btn:hover { border-color: #5a5a5a; }
+.btn.primary { background: var(--text); color: #161616; border-color: var(--text); box-shadow: 3px 3px 0 #000; }
+.btn.primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
+.btn svg { width: 15px; height: 15px; }
+
+.frame {
+  position: relative; aspect-ratio: 16 / 9; width: 100%;
+  border-radius: 6px; overflow: hidden; background: #000;
+  box-shadow: 0 0 0 1px var(--line), 0 10px 30px rgba(0,0,0,.35);
+}
+.frame svg, .thumb svg, .mini svg { display: block; width: 100%; height: 100%; }
+.is-gray { filter: grayscale(1); }
+.frame-meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+.frame-meta .codes { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.status { min-height: 1.45em; color: var(--muted); font-size: 12.5px; }
+
+/* Below the stage */
+.below { grid-area: below; display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 16px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.tally { font-size: 12.5px; color: var(--muted); }
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.chk {
+  display: grid; grid-template-columns: 70px 1fr; gap: 12px; align-items: start;
+  padding: 9px 10px 9px 12px; border-radius: 8px; background: var(--raised);
+  border-left: 3px solid var(--good);
+}
+.chk.warn { border-left-color: var(--warn); }
+.chk.bad { border-left-color: var(--bad); }
+.pill {
+  font-size: 11px; font-weight: 600; letter-spacing: .02em; text-align: center;
+  padding: 2px 0; border-radius: 99px; margin-top: 1px;
+  background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good);
+}
+.chk.warn .pill { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+.chk.bad .pill { background: color-mix(in srgb, var(--bad) 22%, transparent); color: var(--bad); }
+.chk strong { display: block; font-weight: 600; font-size: 13.5px; }
+.chk span { color: var(--muted); font-size: 12.5px; }
+.relation { margin: 12px 0 0; color: var(--muted); font-size: 12.5px; }
+.relation b { color: var(--text); font-weight: 600; }
+
+.thumbcard { display: grid; gap: 10px; align-content: start; }
+.thumb { width: 168px; height: 94.5px; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.thumbcard p { margin: 0; color: var(--muted); font-size: 12.5px; }
+
+.dl-only { display: none !important; }
+body.can-download .dl-only { display: inline-flex !important; }
+body.can-download .dl-only[hidden] { display: none !important; }
+.linkbtn[disabled], .remove[disabled] { opacity: .5; cursor: progress; }
+.look-actions { display: flex; gap: 2px; }
+.btn .heart { fill: none; }
+.btn[aria-pressed="true"] .heart { fill: #d9466b; stroke: #d9466b; }
+.status .linkbtn { margin-left: 6px; }
+.saved .card-head { margin-bottom: 12px; }
+.saved .count { color: var(--muted); font-weight: 500; }
+.saved-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.sync { color: var(--muted); font-size: 12px; }
+.saved-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 12px; }
+.look { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid; align-content: start; }
+.look.is-current { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+.look .load { border: 0; padding: 0; background: none; display: block; }
+.look .load:hover .mini { filter: brightness(1.06); }
+.look .mini { aspect-ratio: 16 / 9; }
+.look-body { display: grid; gap: 4px; padding: 6px 8px 8px; }
+.look-name {
+  width: 100%; min-width: 0; font-weight: 600; font-size: 12.5px; padding: 3px 4px; margin: 0 -4px;
+  background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--text);
+}
+.look-name:hover { border-color: var(--line); }
+.look-name:focus { border-color: #6a6a6a; background: var(--panel); outline: none; }
+.look-name[readonly] { pointer-events: none; }
+.look-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.look-score { font-size: 11px; font-weight: 600; color: var(--good); }
+.look-score.warn { color: var(--warn); }
+.look-score.bad { color: var(--bad); }
+.look-style { font-size: 11.5px; color: var(--muted); }
+.dots { display: flex; gap: 5px; align-items: center; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.dot { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,.18); }
+.remove { border: 0; background: none; color: var(--muted); font-size: 12px; padding: 4px 6px; border-radius: 6px; }
+.remove:hover { color: var(--bad); }
+.empty { grid-column: 1 / -1; margin: 0; color: var(--muted); max-width: 65ch; }
+.notes { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
+.notes p { margin: 0; max-width: 100ch; }
+
+/* Rail */
+.rail {
+  grid-area: rail; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 16px; display: grid; gap: 20px; align-content: start;
+  position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto;
+}
+.rail section { display: grid; gap: 14px; }
+.rail-note { margin: -6px 0 0; color: var(--muted); font-size: 12px; }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.preset {
+  display: flex; align-items: center; gap: 8px; text-align: left;
+  background: var(--raised); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 8px; font-size: 12px; font-weight: 500; line-height: 1.2;
+}
+.preset:hover { border-color: #5a5a5a; }
+.preset[aria-pressed="true"] { border-color: var(--text); }
+.preset .trio { display: grid; grid-template-columns: repeat(3, 9px); height: 22px; border-radius: 4px; overflow: hidden; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+
+.ctl { display: grid; gap: 8px; }
+.ctl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ctl-head label { font-weight: 600; font-size: 13px; }
+.ctl-head .name { color: var(--muted); font-weight: 400; font-size: 12px; }
+.ctl-row { display: flex; gap: 8px; align-items: center; }
+.ctl input[type="color"] {
+  width: 46px; height: 36px; flex: none; padding: 3px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--raised);
+}
+.ctl input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.ctl input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 5px; }
+.ctl input[type="color"]::-moz-color-swatch { border: 0; border-radius: 5px; }
+.ctl input[type="text"] {
+  flex: 1; min-width: 0; height: 36px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--raised);
+  font-family: var(--mono); font-size: 13.5px; text-transform: uppercase; font-variant-numeric: tabular-nums;
+}
+.ctl input[aria-invalid="true"] { border-color: var(--bad); }
+.lock {
+  width: 36px; height: 36px; flex: none; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--raised); color: var(--muted); display: grid; place-items: center;
+}
+.lock svg { width: 16px; height: 16px; }
+.lock[aria-pressed="true"] { color: #161616; background: var(--warn); border-color: var(--warn); }
+.swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.sw {
+  aspect-ratio: 3 / 2; padding: 0; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.14);
+}
+.sw:hover { transform: scale(1.06); }
+.sw[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 2px; }
+details { border-top: 1px solid var(--line); padding-top: 16px; }
+summary { cursor: pointer; font-family: var(--display); font-weight: 600; font-size: 14px; list-style-position: inside; }
+details[open] summary { margin-bottom: 14px; }
+details .inner { display: grid; gap: 14px; }
+
+@media (max-width: 960px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "stage" "rail" "below"; padding: 16px; }
+  .rail { position: static; max-height: none; overflow: visible; }
+}
+@media (max-width: 620px) {
+  .below { grid-template-columns: minmax(0, 1fr); }
+  .chk { grid-template-columns: 1fr; gap: 6px; }
+  .pill { justify-self: start; padding: 2px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  .sw:hover { transform: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Host Set Color Tester</h1>
+    <p class="sub">Try backdrop, blazer and shirt colors on a bald, bearded host with fair, pink skin. The checks underneath flag combinations that tend to fail on camera.</p>
+  </header>
+
+  <main class="stage" aria-label="Preview">
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="Framing">
+        <button type="button" id="frame-center" data-framing="center" aria-pressed="true">Centered</button>
+        <button type="button" id="frame-third" data-framing="third" aria-pressed="false">On a third</button>
+      </div>
+      <div class="seg" role="group" aria-label="Neckline">
+        <button type="button" id="neck-collar" data-style="collar" aria-pressed="true">Open collar</button>
+        <button type="button" id="neck-crew" data-style="crew" aria-pressed="false">Crew neck</button>
+        <button type="button" id="neck-turtle" data-style="turtle" aria-pressed="false">Turtleneck</button>
+      </div>
+      <button type="button" class="toggle" id="toggle-gray" aria-pressed="false"><span class="knob" aria-hidden="true"></span>Grayscale</button>
+      <button type="button" class="toggle" id="toggle-gfx" aria-pressed="false"><span class="knob" aria-hidden="true"></span>Graphics</button>
+      <span class="actions">
+      <button type="button" class="btn" id="btn-shuffle" title="New backdrop, blazer and shirt that pass the camera checks. Locked colors stay put.">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
+        Shuffle
+      </button>
+      <button type="button" class="btn primary" id="btn-save" aria-pressed="false" title="Save or unsave this look (shortcut: S)">
+        <svg class="heart" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.2-9.3C1.6 7.8 3.8 4.5 7.3 4.5c2 0 3.6 1.1 4.7 2.7 1.1-1.6 2.7-2.7 4.7-2.7 3.5 0 5.7 3.3 4.5 6.7-1.7 4.7-9.2 9.3-9.2 9.3z"/></svg>
+        <span id="save-label">Save look</span>
+      </button>
+      </span>
+    </div>
+
+    <div class="frame" id="frame"></div>
+    <div class="frame-meta">
+      <span class="codes-wrap"><span class="codes" id="codes"></span><button type="button" class="linkbtn" id="btn-copy">Copy hex codes</button><button type="button" class="linkbtn dl-only" id="btn-dl-current">Download image</button></span>
+      <span>16:9 · medium close-up · eye level</span>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+
+    <section class="card saved" aria-labelledby="saved-title">
+      <div class="card-head">
+        <h2 id="saved-title">Saved looks <span class="count" id="saved-count"></span></h2>
+        <div class="saved-tools">
+          <span class="sync" id="sync-note"></span>
+          <button type="button" class="linkbtn" id="btn-copy-saved">Copy list</button>
+          <button type="button" class="linkbtn dl-only" id="btn-dl-sheet">Contact sheet</button>
+          <button type="button" class="linkbtn dl-only" id="btn-dl-all">Download all</button>
+        </div>
+      </div>
+      <div class="saved-grid" id="saved-grid"></div>
+    </section>
+  </main>
+
+  <aside class="rail" aria-label="Colors">
+    <section>
+      <h2>Start from</h2>
+      <div class="presets" id="presets"></div>
+    </section>
+    <section>
+      <h2>Set and wardrobe</h2>
+      <p class="rail-note">Lock a color to keep it when you shuffle.</p>
+      <div id="set-controls" class="inner" style="display:grid;gap:18px"></div>
+    </section>
+    <details id="host-details" open>
+      <summary>Host</summary>
+      <div class="inner" id="host-controls"></div>
+    </details>
+    <details id="gfx-details">
+      <summary>Graphics</summary>
+      <div class="inner">
+        <p class="rail-note" style="margin:0">Your brand accent and dark hex codes are still open, so these are stand-ins. Enter the real ones once they are set. The bubble uses the site's button shape and hard 6px shadow.</p>
+        <div class="inner" id="gfx-controls"></div>
+      </div>
+    </details>
+  </aside>
+
+  <section class="below" aria-label="Checks and saved looks">
+    <div class="card checks">
+      <div class="card-head">
+        <h2>Camera checks</h2>
+        <span class="tally" id="tally"></span>
+      </div>
+      <ul class="check-list" id="check-list"></ul>
+      <p class="relation" id="relation"></p>
+    </div>
+    <div class="card thumbcard">
+      <h2>Thumbnail size</h2>
+      <div class="thumb" id="thumb"></div>
+      <p>Actual size of a suggested-video thumbnail (168 × 94). The face should still be the first thing you see.</p>
+    </div>
+    <div class="notes">
+      <p>Screens only approximate fabric. Colors shift under your key light and camera profile, so test finalists on camera before buying. Stick to solid fabrics; small patterns shimmer on video.</p>
+      <p>The page itself is neutral grey so it doesn't tint the colors you're judging.</p>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Color math (sRGB <-> OKLab) ---------- */
+  function hexToRgb(h) {
+    h = h.replace("#", "");
+    if (h.length === 3) h = h.split("").map(function (c) { return c + c; }).join("");
+    var n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function rgbToHex(rgb) {
+    return "#" + rgb.map(function (v) {
+      return Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, "0");
+    }).join("").toUpperCase();
+  }
+  function toLin(v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+  function fromLin(v) { v = Math.min(1, Math.max(0, v)); v = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; return v * 255; }
+  function hexToOklab(hex) {
+    var c = hexToRgb(hex).map(toLin), r = c[0], g = c[1], b = c[2];
+    var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    var m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    var s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    return [
+      0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+      1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+      0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+    ];
+  }
+  function oklabToLinear(lab) {
+    var L = lab[0], a = lab[1], b = lab[2];
+    var l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3);
+    var m = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3);
+    var s = Math.pow(L - 0.0894841775 * a - 1.2914855480 * b, 3);
+    return [
+      4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+      -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
+    ];
+  }
+  function oklabToHex(lab) { return rgbToHex(oklabToLinear(lab).map(fromLin)); }
+  function inGamut(lab) { return oklabToLinear(lab).every(function (v) { return v >= -0.0005 && v <= 1.0005; }); }
+  function oklch(hex) { var o = hexToOklab(hex); return [o[0], Math.hypot(o[1], o[2]), (Math.atan2(o[2], o[1]) * 180 / Math.PI + 360) % 360]; }
+  function fromOklch(L, C, H) {
+    var h = H * Math.PI / 180, c = C, lab = [L, c * Math.cos(h), c * Math.sin(h)];
+    while (!inGamut(lab) && c > 0) { c -= 0.004; lab = [L, c * Math.cos(h), c * Math.sin(h)]; }
+    return oklabToHex(lab);
+  }
+  function adjL(hex, d) { var o = hexToOklab(hex); return oklabToHex([Math.min(1, Math.max(0.02, o[0] + d)), o[1], o[2]]); }
+  function mix(a, b, t) { var A = hexToOklab(a), B = hexToOklab(b); return oklabToHex(A.map(function (v, i) { return v + (B[i] - v) * t; })); }
+  function dE(a, b) { var A = hexToOklab(a), B = hexToOklab(b); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]); }
+  function lum(hex) { var c = hexToRgb(hex).map(toLin); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+  function contrast(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  function normHex(v) {
+    v = String(v || "").trim().replace(/^#/, "");
+    if (/^[0-9a-fA-F]{3}$/.test(v)) v = v.split("").map(function (c) { return c + c; }).join("");
+    return /^[0-9a-fA-F]{6}$/.test(v) ? "#" + v.toUpperCase() : null;
+  }
+
+  /* ---------- Swatches, presets, defaults ---------- */
+  var CONTROLS = {
+    bg: { label: "Backdrop", group: "set", lock: true, sw: [
+      ["Cream", "#EDE3D3"], ["Light sand", "#F2E4C4"], ["Pale sage", "#E0E7D8"], ["Pale blue", "#DCE5EC"], ["Warm grey", "#857D73"], ["Ochre", "#A0722A"],
+      ["Terracotta", "#B8684C"], ["Dusty blue", "#6F87A0"], ["Reference teal", "#3F646A"], ["Deep green", "#2F4A3F"], ["Slate", "#4A5560"], ["Navy", "#1F2A3D"]] },
+    blazer: { label: "Blazer", group: "set", lock: true, sw: [
+      ["Navy", "#26344F"], ["Charcoal", "#393B40"], ["Mid grey", "#6E7177"], ["Black", "#1C1C1E"], ["Reference burgundy", "#4A2230"], ["Rust", "#8C4A2F"],
+      ["Camel", "#A57A52"], ["Chocolate", "#4E3528"], ["Olive", "#5B5E3A"], ["Forest", "#2E4A3A"], ["Teal", "#2C5A5E"], ["Cobalt", "#2F4F8F"]] },
+    shirt: { label: "Shirt", group: "set", lock: true, sw: [
+      ["Off-white", "#F2EFE8"], ["Cream", "#EEE4CF"], ["Light grey", "#CFCFCF"], ["Light blue", "#C9D8E8"], ["Chambray", "#8DA2BC"], ["Pale pink", "#E8C9C6"],
+      ["Reference mauve", "#8C5C69"], ["Sage", "#A9B49A"], ["Mustard", "#C99A3E"], ["Navy", "#27324A"], ["Charcoal", "#3A3B3F"], ["Black", "#1B1B1C"]] },
+    skin: { label: "Skin tone", group: "host", sw: [
+      ["Host (fair, pink)", "#DDA99E"], ["Photo (fair, rosy)", "#D29B92"], ["Fair, warm", "#E3B49A"], ["Light, olive", "#CDA184"], ["Light-medium", "#C48F72"], ["Medium", "#A9765A"]] },
+    beard: { label: "Beard", group: "host", sw: [
+      ["Reference ginger-brown", "#8A5F48"], ["Auburn", "#7B3F2B"], ["Dark brown", "#4A3328"], ["Black", "#24201F"], ["Salt and pepper", "#86817C"], ["Blond", "#B4935F"]] },
+    accent: { label: "Bubble color", group: "gfx", sw: [
+      ["Amber", "#F2B33D"], ["Coral", "#F2694B"], ["Teal", "#25B3A7"], ["Sky", "#4C8DF0"], ["Magenta", "#D9467E"], ["Lime", "#A8D64B"]] },
+    dark: { label: "Brand dark", group: "gfx", sw: [
+      ["Ink", "#1E2632"], ["Black", "#111111"], ["Navy", "#14213D"], ["Plum", "#2B1E2F"], ["Forest", "#15291F"], ["Graphite", "#2B2D31"]] }
+  };
+  var KEYS = Object.keys(CONTROLS);
+  var STYLE_NAMES = { collar: "open collar", crew: "crew neck", turtle: "turtleneck" };
+
+  var PRESETS = [
+    { name: "Reference photo", bg: "#3F646A", blazer: "#4A2230", shirt: "#8C5C69", style: "collar" },
+    { name: "Cream + navy", bg: "#EDE3D3", blazer: "#26344F", shirt: "#F2EFE8", style: "collar" },
+    { name: "Light sand + olive", bg: "#F2E4C4", blazer: "#5B5E3A", shirt: "#F2EFE8", style: "crew" },
+    { name: "Pale blue + charcoal", bg: "#DCE5EC", blazer: "#393B40", shirt: "#C9D8E8", style: "collar" },
+    { name: "Pale sage + rust", bg: "#E0E7D8", blazer: "#8C4A2F", shirt: "#EEE4CF", style: "collar" },
+    { name: "Deep green + camel", bg: "#2F4A3F", blazer: "#A57A52", shirt: "#F2EFE8", style: "turtle" }
+  ];
+
+  var DEFAULTS = {
+    bg: "#3F646A", blazer: "#4A2230", shirt: "#8C5C69", skin: "#DDA99E", beard: "#8A5F48",
+    accent: "#F2B33D", dark: "#1E2632",
+    style: "collar", framing: "center", gray: false, gfx: false,
+    locks: { bg: false, blazer: false, shirt: false }
+  };
+
+  var STORE_KEY = "vl-host-color-tester-v1";
+  function load() {
+    try { var raw = localStorage.getItem(STORE_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  function persist() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ state: state, saved: localSaved })); } catch (e) { /* storage unavailable */ }
+  }
+  var stored = load();
+  var state = JSON.parse(JSON.stringify(DEFAULTS));
+  var storedSaved = stored && Array.isArray(stored.saved) ? stored.saved : [];
+  var localSaved = [];   // looks kept in this browser (used only when the page's shared storage isn't available)
+  var saved = [];        // the list on screen
+  if (stored && stored.state) {
+    KEYS.forEach(function (k) { var v = normHex(stored.state[k]); if (v) state[k] = v; });
+    ["style", "framing"].forEach(function (k) { if (typeof stored.state[k] === "string") state[k] = stored.state[k]; });
+    state.gray = !!stored.state.gray; state.gfx = !!stored.state.gfx;
+    if (stored.state.locks) state.locks = Object.assign({}, DEFAULTS.locks, stored.state.locks);
+  }
+
+  function swatchName(key, hex) {
+    var hit = CONTROLS[key].sw.find(function (s) { return s[1] === hex; });
+    return hit ? hit[0] : null;
+  }
+
+  /* ---------- Host illustration ---------- */
+  var HEAD = "M800 150C890 150 935 222 935 322C935 402 915 462 880 502C855 530 830 545 800 545C770 545 745 530 720 502C685 462 665 402 665 322C665 222 710 150 800 150Z";
+  var BODY = "M395 1080C392 880 415 735 515 680C585 645 668 618 730 590L870 590C932 618 1015 645 1085 680C1185 735 1208 880 1205 1080Z";
+  var BEARD = "M906 330Q917 314 931 328C938 424 908 514 862 557C838 581 818 595 800 595C782 595 762 581 738 557C692 514 662 424 669 328Q683 314 694 330C694 388 712 434 748 453C770 463 785 458 800 458C815 458 830 463 852 453C888 434 906 388 906 330Z";
+  var LAPEL_L = "M690 585L655 600C640 640 628 690 612 748L642 758L592 788C630 900 668 1000 700 1080L742 1080Z";
+  var LAPEL_R = "M910 585L945 600C960 640 972 690 988 748L958 758L1008 788C970 900 932 1000 900 1080L858 1080Z";
+  var SHIRT_V = "M690 585L910 585L858 1080L742 1080Z";
+  var SHIRT_CREW = "M690 585L733 585Q800 652 867 585L910 585L858 1080L742 1080Z";
+  var COLLAR_L = "M716 548L764 594L782 700L735 678L698 602Z";
+  var COLLAR_R = "M884 548L836 594L818 700L865 678L902 602Z";
+  var EYE_L = "M726 334Q752 318 778 334Q752 346 726 334Z";
+  var EYE_R = "M822 334Q848 318 874 334Q848 346 822 334Z";
+
+  // Beard texture: fixed pseudo-random strokes, so every render matches.
+  var BEARD_TEX = (function () {
+    var seed = 11;
+    function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+    var dk = "", lt = "";
+    for (var i = 0; i < 170; i++) {
+      var x = 668 + rnd() * 266, y = 330 + rnd() * 268, len = 8 + rnd() * 12;
+      var tilt = (x - 800) / 135 * 0.45 + (rnd() - 0.5) * 0.45;
+      var seg = "M" + x.toFixed(1) + " " + y.toFixed(1) + "l" + (Math.sin(tilt) * len).toFixed(1) + " " + (Math.cos(tilt) * len).toFixed(1);
+      if (i % 2) dk += seg; else lt += seg;
+    }
+    return { dk: dk, lt: lt };
+  })();
+
+  var mctx = document.createElement("canvas").getContext("2d");
+  function measure(text, weight, size) {
+    mctx.font = weight + " " + size + "px Poppins, Arial, sans-serif";
+    return mctx.measureText(text).width;
+  }
+  function bubblePath(x, y, w, h, r) {
+    return "M" + (x + r) + " " + y + "H" + (x + w - r) + "A" + r + " " + r + " 0 0 1 " + (x + w) + " " + (y + r) +
+      "V" + (y + h - r) + "A" + r + " " + r + " 0 0 1 " + (x + w - r) + " " + (y + h) +
+      "H" + x + "V" + (y + r) + "A" + r + " " + r + " 0 0 1 " + (x + r) + " " + y + "Z";
+  }
+  function bubbleText(c) { return contrast(c.accent, c.dark) >= contrast(c.accent, "#FFFFFF") ? c.dark : "#FFFFFF"; }
+  // Bubble layout in 1600×900 frame units; shared by the live SVG and the PNG export.
+  function bubbleGeom(c, framing) {
+    var g = {};
+    if (framing === "third") { g.lines = ["What does a court", "interpreter do?"]; g.size = 60; g.weight = 800; g.x = 110; }
+    else { g.lines = ["Ask an interpreter"]; g.size = 46; g.weight = 600; g.x = 96; }
+    g.padX = g.size * 0.72; g.padY = g.size * 0.42; g.lh = g.size * 1.2;
+    g.w = Math.max.apply(null, g.lines.map(function (t) { return measure(t, g.weight, g.size); })) + g.padX * 2;
+    g.h = g.lines.length * g.lh + g.padY * 2;
+    g.y = framing === "third" ? 380 - g.h / 2 : 808 - g.h;
+    g.r = Math.round(g.size * 0.42);
+    g.path = bubblePath(Math.round(g.x), Math.round(g.y), Math.round(g.w), Math.round(g.h), g.r);
+    g.tc = bubbleText(c);
+    return g;
+  }
+  function graphicsSVG(c, framing) {
+    var g = bubbleGeom(c, framing);
+    var t = g.lines.map(function (line, i) {
+      return '<text x="' + (g.x + g.padX).toFixed(1) + '" y="' + (g.y + g.padY + g.lh * i + g.lh / 2).toFixed(1) + '" dominant-baseline="central" font-family="Poppins, Arial, sans-serif" font-weight="' + g.weight + '" font-size="' + g.size + '" fill="' + g.tc + '">' + line + "</text>";
+    }).join("");
+    return '<g><path d="' + g.path + '" fill="' + c.dark + '" transform="translate(10 10)"/>' +
+      '<path d="' + g.path + '" fill="' + c.accent + '" stroke="#FCFCFC" stroke-width="4"/>' + t + "</g>";
+  }
+  function drawBubble(ctx, c, framing, scale) {
+    var g = bubbleGeom(c, framing), p = new Path2D(g.path);
+    ctx.save();
+    ctx.scale(scale, scale);
+    ctx.save(); ctx.translate(10, 10); ctx.fillStyle = c.dark; ctx.fill(p); ctx.restore();
+    ctx.fillStyle = c.accent; ctx.fill(p);
+    ctx.lineWidth = 4; ctx.strokeStyle = "#FCFCFC"; ctx.stroke(p);
+    ctx.fillStyle = g.tc; ctx.textBaseline = "middle";
+    ctx.font = g.weight + " " + g.size + "px Poppins, Arial, sans-serif";
+    g.lines.forEach(function (line, i) { ctx.fillText(line, g.x + g.padX, g.y + g.padY + g.lh * i + g.lh / 2); });
+    ctx.restore();
+  }
+
+  function hostSVG(c, o) {
+    var u = o.uid, fx = o.framing === "third" ? 260 : 0;
+    var S = c.skin, skL = adjL(S, 0.05), skD = adjL(S, -0.07), skDeep = adjL(S, -0.17);
+    var lip = mix(skD, "#A5525A", 0.35);
+    var B = c.beard, bdL = adjL(B, 0.06), bdD = adjL(B, -0.08), brow = mix(bdD, "#2B2220", 0.2);
+    var Z = c.blazer, zL = adjL(Z, 0.05), zD = adjL(Z, -0.06), zLine = adjL(Z, -0.13);
+    var H = c.shirt, hL = adjL(H, 0.03), hD = adjL(H, -0.09);
+    var G = c.bg, gGlow = adjL(G, 0.05), gVig = adjL(G, -0.09);
+    var st = o.style;
+    var label = "Illustrated host: " + (swatchName("bg", G) || G) + " backdrop, " + (swatchName("blazer", Z) || Z) + " blazer, " + (swatchName("shirt", H) || H) + " " + STYLE_NAMES[st];
+
+    var s = '<svg viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + label + '" preserveAspectRatio="xMidYMid slice">';
+    s += "<defs>" +
+      '<radialGradient id="' + u + 'bg" cx="' + ((800 + fx) / 1600).toFixed(3) + '" cy="0.36" r="0.78"><stop offset="0" stop-color="' + gGlow + '"/><stop offset="0.55" stop-color="' + G + '"/><stop offset="1" stop-color="' + gVig + '"/></radialGradient>' +
+      '<linearGradient id="' + u + 'blz" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="' + zL + '"/><stop offset="0.5" stop-color="' + Z + '"/><stop offset="1" stop-color="' + zD + '"/></linearGradient>' +
+      '<linearGradient id="' + u + 'skin" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="' + skL + '"/><stop offset="0.5" stop-color="' + S + '"/><stop offset="1" stop-color="' + skD + '"/></linearGradient>' +
+      '<radialGradient id="' + u + 'shine"><stop offset="0" stop-color="#fff" stop-opacity="0.34"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>' +
+      '<linearGradient id="' + u + 'shirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + hD + '"/><stop offset="0.2" stop-color="' + H + '"/><stop offset="1" stop-color="' + hL + '"/></linearGradient>' +
+      '<linearGradient id="' + u + 'beard" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="' + bdL + '"/><stop offset="0.5" stop-color="' + B + '"/><stop offset="1" stop-color="' + bdD + '"/></linearGradient>' +
+      '<clipPath id="' + u + 'head"><path d="' + HEAD + '"/></clipPath>' +
+      '<clipPath id="' + u + 'bclip"><path d="' + BEARD + '"/></clipPath>' +
+      '<clipPath id="' + u + 'eyeL"><path d="' + EYE_L + '"/></clipPath>' +
+      '<clipPath id="' + u + 'eyeR"><path d="' + EYE_R + '"/></clipPath>' +
+      '<filter id="' + u + 'soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="26"/></filter>' +
+      '<filter id="' + u + 'tight" x="-40%" y="-80%" width="180%" height="260%"><feGaussianBlur stdDeviation="9"/></filter>' +
+      "</defs>";
+    s += '<rect width="1600" height="900" fill="url(#' + u + 'bg)"/>';
+    s += '<g transform="translate(' + fx + ' 0)"><g transform="translate(800 70) scale(0.937) translate(-800 -150)">';
+
+    // Soft shadow on the backdrop
+    s += '<g filter="url(#' + u + 'soft)" opacity="0.2" transform="translate(40 16)"><ellipse cx="800" cy="350" rx="140" ry="205"/><path d="' + BODY + '"/></g>';
+
+    // Blazer body, sleeve creases, breast pocket
+    s += '<path d="' + BODY + '" fill="url(#' + u + 'blz)"/>';
+    s += '<path d="M540 690C500 760 482 880 478 1080M1060 690C1100 760 1118 880 1122 1080" fill="none" stroke="' + zLine + '" stroke-width="4" opacity="0.45"/>';
+    s += '<path d="M905 800L1022 785L1024 798L907 813Z" fill="' + zD + '" stroke="' + zLine + '" stroke-width="2" opacity="0.8"/>';
+
+    // Shirt
+    if (st === "collar") s += '<path d="M712 548Q800 524 888 548L892 604L708 604Z" fill="' + hD + '"/>';
+    s += '<path d="M728 450L728 600Q728 640 760 655L840 655Q872 640 872 600L872 450Z" fill="' + skD + '"/>';
+    s += '<path d="' + (st === "crew" ? SHIRT_CREW : SHIRT_V) + '" fill="url(#' + u + 'shirt)"/>';
+    if (st === "crew") s += '<path d="M733 588Q800 655 867 588" fill="none" stroke="' + hD + '" stroke-width="10" stroke-linecap="round"/>';
+    if (st === "turtle") {
+      s += '<path d="M720 455L880 455L886 604Q800 628 714 604Z" fill="' + H + '"/>';
+      s += '<path d="M722 500Q800 516 878 500M719 540Q800 558 881 540M716 578Q800 598 884 578" fill="none" stroke="' + hD + '" stroke-width="3" opacity="0.6"/>';
+    }
+    if (st === "collar") {
+      s += '<path d="M800 700L800 1080" stroke="' + hD + '" stroke-width="2.5" opacity="0.45"/>';
+      s += '<circle cx="800" cy="770" r="6" fill="' + hL + '" stroke="' + hD + '" stroke-width="2"/><circle cx="800" cy="930" r="6" fill="' + hL + '" stroke="' + hD + '" stroke-width="2"/>';
+      s += '<path d="M760 590L840 590L800 700Z" fill="' + skD + '"/><path d="M760 590L840 590L800 640Z" fill="' + skDeep + '" opacity="0.35"/>';
+    }
+
+    // Lapels
+    s += '<path d="' + LAPEL_L + '" fill="' + zL + '" stroke="' + zLine + '" stroke-width="3" stroke-linejoin="round"/>';
+    s += '<path d="' + LAPEL_R + '" fill="' + zD + '" stroke="' + zLine + '" stroke-width="3" stroke-linejoin="round"/>';
+    if (st === "collar") {
+      s += '<path d="' + COLLAR_L + '" fill="' + hL + '" stroke="' + hD + '" stroke-width="2.5" stroke-linejoin="round"/>';
+      s += '<path d="' + COLLAR_R + '" fill="' + H + '" stroke="' + hD + '" stroke-width="2.5" stroke-linejoin="round"/>';
+    }
+    // Lav mic
+    var lavY = st === "collar" ? 812 : 700;
+    s += '<path d="M806 ' + (lavY + 22) + 'C812 ' + (lavY + 80) + ' 818 ' + (lavY + 140) + ' 816 1080" fill="none" stroke="#141414" stroke-width="3"/>';
+    s += '<rect x="796" y="' + lavY + '" width="14" height="26" rx="5" fill="#161616"/><rect x="793" y="' + (lavY + 18) + '" width="20" height="9" rx="2" fill="#2a2a2a"/>';
+
+    // Shadow under the beard
+    s += '<ellipse cx="800" cy="590" rx="80" ry="16" fill="#000" opacity="0.18" filter="url(#' + u + 'tight)"/>';
+
+    // Ears and head
+    s += '<ellipse cx="662" cy="350" rx="26" ry="45" fill="' + skD + '"/><ellipse cx="666" cy="352" rx="12" ry="25" fill="' + skDeep + '" opacity="0.4"/>';
+    s += '<ellipse cx="938" cy="350" rx="26" ry="45" fill="' + skD + '"/><ellipse cx="934" cy="352" rx="12" ry="25" fill="' + skDeep + '" opacity="0.4"/>';
+    s += '<path d="' + HEAD + '" fill="url(#' + u + 'skin)"/>';
+    s += '<g clip-path="url(#' + u + 'head)">' +
+      '<ellipse cx="768" cy="212" rx="105" ry="66" fill="url(#' + u + 'shine)"/>' +
+      '<ellipse cx="742" cy="404" rx="34" ry="22" fill="#E06A74" opacity="0.09"/><ellipse cx="858" cy="404" rx="34" ry="22" fill="#E06A74" opacity="0.09"/>' +
+      '<ellipse cx="752" cy="322" rx="36" ry="17" fill="' + skDeep + '" opacity="0.18"/><ellipse cx="848" cy="322" rx="36" ry="17" fill="' + skDeep + '" opacity="0.18"/>' +
+      '<path d="M748 250Q800 240 852 250M760 266Q800 259 840 266" fill="none" stroke="' + skD + '" stroke-width="3" stroke-linecap="round" opacity="0.55"/>' +
+      "</g>";
+
+    // Brows, eyes, nose
+    s += '<path d="M712 302C730 289 764 287 786 297M814 297C836 287 870 289 888 302" fill="none" stroke="' + brow + '" stroke-width="11" stroke-linecap="round"/>';
+    [["L", 752, EYE_L], ["R", 848, EYE_R]].forEach(function (e) {
+      s += '<path d="' + e[2] + '" fill="#EFE7E2"/>';
+      s += '<g clip-path="url(#' + u + "eye" + e[0] + ')"><circle cx="' + e[1] + '" cy="333" r="9" fill="#7A929F"/><circle cx="' + e[1] + '" cy="333" r="4" fill="#1B1B1B"/><circle cx="' + (e[1] + 3) + '" cy="330" r="2" fill="#fff"/></g>';
+      s += '<path d="M' + (e[1] - 28) + ' 334Q' + e[1] + " 314 " + (e[1] + 28) + ' 333" fill="none" stroke="' + skDeep + '" stroke-width="3.5" stroke-linecap="round"/>';
+      s += '<path d="M' + (e[1] - 20) + ' 345Q' + e[1] + " 352 " + (e[1] + 20) + ' 345" fill="none" stroke="' + skD + '" stroke-width="2" opacity="0.6"/>';
+    });
+    s += '<path d="M789 342C783 375 780 400 779 420" fill="none" stroke="' + skD + '" stroke-width="5" stroke-linecap="round" opacity="0.6"/>';
+    s += '<ellipse cx="803" cy="420" rx="12" ry="9" fill="' + skL + '" opacity="0.7"/>';
+    s += '<path d="M783 418C775 430 782 441 793 438M817 418C825 430 818 441 807 438" fill="none" stroke="' + skDeep + '" stroke-width="3" stroke-linecap="round" opacity="0.75"/>';
+    s += '<ellipse cx="791" cy="437" rx="6" ry="3" fill="' + skDeep + '" opacity="0.55"/><ellipse cx="809" cy="437" rx="6" ry="3" fill="' + skDeep + '" opacity="0.55"/>';
+
+    // Beard, texture, lips, mustache
+    s += '<path d="' + BEARD + '" fill="url(#' + u + 'beard)"/>';
+    s += '<g clip-path="url(#' + u + 'bclip)" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="' + BEARD_TEX.dk + '" stroke="' + bdD + '" opacity="0.55"/><path d="' + BEARD_TEX.lt + '" stroke="' + bdL + '" opacity="0.45"/></g>';
+    s += '<path d="M776 497Q800 514 824 497Q800 503 776 497Z" fill="' + lip + '"/>';
+    s += '<path d="M771 494Q800 501 829 494" fill="none" stroke="#5A2E2E" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>';
+    s += '<path d="M759 491C767 470 786 461 800 469C814 461 833 470 841 491C826 484 812 482 800 486C788 482 774 484 759 491Z" fill="' + bdL + '" stroke="' + bdD + '" stroke-width="1.5"/>';
+
+    s += "</g></g>";
+    if (o.gfx) s += graphicsSVG(c, o.framing);
+    s += "</svg>";
+    return s;
+  }
+
+  /* ---------- Camera checks ---------- */
+  function evaluate(c, withGfx) {
+    var out = [];
+    var bgL = oklch(c.bg), blzL = oklch(c.blazer);
+
+    var d1 = dE(c.blazer, c.bg), dl1 = Math.abs(bgL[0] - blzL[0]);
+    if (d1 < 0.09) out.push({ s: "bad", t: "Blazer blends into the backdrop", d: "Your outline will disappear into the wall. Make one of them clearly lighter or darker." });
+    else if (dl1 < 0.06) out.push({ s: "warn", t: "Blazer stands out by color only", d: "They're nearly the same brightness, so they merge in grayscale and for colorblind viewers. Turn on Grayscale to see it." });
+    else out.push({ s: "good", t: "Blazer stands out from the backdrop", d: "Clear difference in brightness and color, so the silhouette reads at any size." });
+
+    var d2 = dE(c.skin, c.bg), cool = bgL[1] > 0.03 && bgL[2] > 170 && bgL[2] < 290, skinHue = bgL[1] > 0.03 && bgL[2] > 20 && bgL[2] < 80;
+    if (d2 < 0.08) out.push({ s: "bad", t: "Backdrop is close to the skin tone", d: "The face and head lose their edge against the wall. Go much lighter, darker, or cooler." });
+    else if (d2 < 0.13) out.push({ s: "warn", t: "Face has soft separation", d: skinHue ? "The backdrop shares the warm hue of the skin. A cooler or much lighter backdrop makes the face pop." : "Workable, but a backlight or a slightly darker backdrop would help the head stand out." });
+    else out.push({ s: "good", t: "Face pops against the backdrop", d: cool ? "A cool backdrop sets off warm skin, the classic orange-and-teal pairing." : "Enough difference that the face leads the frame." });
+
+    var d3 = dE(c.shirt, c.skin), d3b = dE(c.shirt, c.beard);
+    if (d3 < 0.07) out.push({ s: "warn", t: "Shirt is close to the skin tone", d: "Near the neckline it can read as bare skin on camera." });
+    else if (d3b < 0.07) out.push({ s: "warn", t: "Beard melts into the shirt", d: "The jawline loses definition where the beard meets the neckline." });
+    else out.push({ s: "good", t: "Shirt frames the face and beard", d: "Neckline, beard and skin stay distinct." });
+
+    var d4 = dE(c.shirt, c.blazer);
+    if (d4 < 0.06) out.push({ s: "warn", t: "Shirt and blazer merge", d: "They read as one block of color. Fine if you want a tonal look; otherwise add contrast." });
+    else out.push({ s: "good", t: "Shirt and blazer layer clearly", d: "The jacket shape stays visible against the shirt." });
+
+    var issues = [];
+    ["bg", "blazer", "shirt"].forEach(function (k) {
+      var v = oklch(c[k]), nm = CONTROLS[k].label;
+      if (v[0] > 0.97 && v[1] < 0.03) issues.push(nm + " is close to pure white and may clip under a bright key light. Try an off-white.");
+      else if (v[0] < 0.24) issues.push(nm + " is near black and can lose fabric detail after compression.");
+      if (v[1] > 0.17) issues.push(nm + " is very saturated and can bleed or band after YouTube compression.");
+    });
+    if (issues.length) out.push({ s: "warn", t: "Exposure and compression risks", d: issues.join(" ") });
+    else out.push({ s: "good", t: "Safe for exposure and compression", d: "No near-white, near-black or over-saturated colors." });
+
+    if (withGfx) {
+      var gb = dE(c.accent, c.bg), tc = contrast(c.accent, bubbleText(c));
+      if (tc < 4.5) out.push({ s: "warn", t: "Bubble text is hard to read", d: "Text contrast is " + tc.toFixed(1) + ":1. Aim for 4.5:1 or better; try a lighter or darker bubble." });
+      else if (gb < 0.1) out.push({ s: "warn", t: "Bubble sits too close to the backdrop", d: "The white outline and shadow carry it, but a bubble color further from the backdrop will pop more." });
+      else out.push({ s: "good", t: "Bubble reads against the set", d: "Text contrast " + tc.toFixed(1) + ":1, and the bubble stands apart from the backdrop." });
+    }
+    return out;
+  }
+  function relationText(c) {
+    var b = oklch(c.blazer), g = oklch(c.bg);
+    if (b[1] < 0.03 && g[1] < 0.03) return "<b>Blazer and backdrop:</b> a neutral pairing. The skin and beard carry the color, which keeps graphics easy to match.";
+    if (b[1] < 0.03 || g[1] < 0.03) return "<b>Blazer and backdrop:</b> neutral plus one color. Easy to build brand graphics around.";
+    var dh = Math.abs(b[2] - g[2]); if (dh > 180) dh = 360 - dh;
+    if (dh < 35) return "<b>Blazer and backdrop:</b> similar hues (analogous). Calm and cohesive; separation comes from brightness.";
+    if (dh >= 150) return "<b>Blazer and backdrop:</b> opposite hues (complementary). Energetic, with strong separation.";
+    return "<b>Blazer and backdrop:</b> contrasting hues. Lively without being opposites.";
+  }
+
+  /* ---------- UI ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var LOCK_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+  var LOCK_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
+
+  function buildControl(key) {
+    var cfg = CONTROLS[key];
+    var wrap = document.createElement("div");
+    wrap.className = "ctl";
+    var html = '<div class="ctl-head"><label for="' + key + '-hex">' + cfg.label + '</label><span class="name" id="' + key + '-name"></span></div>' +
+      '<div class="ctl-row"><input type="color" id="' + key + '-pick" aria-label="' + cfg.label + ' color picker">' +
+      '<input type="text" id="' + key + '-hex" spellcheck="false" autocomplete="off" maxlength="7" aria-describedby="' + key + '-name">';
+    if (cfg.lock) html += '<button type="button" class="lock" id="' + key + '-lock" aria-pressed="false" aria-label="Keep ' + cfg.label.toLowerCase() + ' when shuffling" title="Keep this color when shuffling"></button>';
+    html += '</div><div class="swatches" role="group" aria-label="' + cfg.label + ' swatches">';
+    cfg.sw.forEach(function (sw, i) {
+      html += '<button type="button" class="sw" id="' + key + '-sw' + i + '" data-hex="' + sw[1] + '" style="background:' + sw[1] + '" title="' + sw[0] + " " + sw[1] + '" aria-label="' + sw[0] + '" aria-pressed="false"></button>';
+    });
+    html += "</div>";
+    wrap.innerHTML = html;
+    $(cfg.group + "-controls").appendChild(wrap);
+
+    $(key + "-pick").addEventListener("input", function (e) { setColor(key, e.target.value); });
+    var hex = $(key + "-hex");
+    hex.addEventListener("input", function () {
+      var v = normHex(hex.value);
+      hex.setAttribute("aria-invalid", v ? "false" : "true");
+      if (v) setColor(key, v, true);
+    });
+    hex.addEventListener("blur", function () { hex.value = state[key]; hex.setAttribute("aria-invalid", "false"); });
+    wrap.querySelectorAll(".sw").forEach(function (b) { b.addEventListener("click", function () { setColor(key, b.dataset.hex); }); });
+    if (cfg.lock) $(key + "-lock").addEventListener("click", function () {
+      state.locks[key] = !state.locks[key]; syncControls(); persist();
+    });
+  }
+
+  function setColor(key, hex, fromText) {
+    var v = normHex(hex); if (!v) return;
+    state[key] = v;
+    if (key === "accent" || key === "dark") { if (!state.gfx) { state.gfx = true; } }
+    render(fromText ? key : null);
+  }
+
+  function syncControls(skipTextFor) {
+    KEYS.forEach(function (k) {
+      var v = state[k];
+      $(k + "-pick").value = v.toLowerCase();
+      if (skipTextFor !== k) $(k + "-hex").value = v;
+      $(k + "-name").textContent = swatchName(k, v) || "Custom";
+      CONTROLS[k].sw.forEach(function (sw, i) { $(k + "-sw" + i).setAttribute("aria-pressed", sw[1] === v ? "true" : "false"); });
+      if (CONTROLS[k].lock) {
+        var lb = $(k + "-lock"), on = !!state.locks[k];
+        lb.setAttribute("aria-pressed", on ? "true" : "false");
+        lb.innerHTML = on ? LOCK_ON : LOCK_OFF;
+      }
+    });
+    document.querySelectorAll("[data-framing]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.framing === state.framing ? "true" : "false"); });
+    document.querySelectorAll("[data-style]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.style === state.style ? "true" : "false"); });
+    $("toggle-gray").setAttribute("aria-pressed", state.gray ? "true" : "false");
+    $("toggle-gfx").setAttribute("aria-pressed", state.gfx ? "true" : "false");
+    document.querySelectorAll(".preset").forEach(function (b, i) {
+      var p = PRESETS[i];
+      b.setAttribute("aria-pressed", p.bg === state.bg && p.blazer === state.blazer && p.shirt === state.shirt ? "true" : "false");
+    });
+  }
+
+  function render(skipTextFor) {
+    var opts = { framing: state.framing, style: state.style, gfx: state.gfx };
+    $("frame").innerHTML = hostSVG(state, Object.assign({ uid: "m" }, opts));
+    $("thumb").innerHTML = hostSVG(state, Object.assign({ uid: "t" }, opts));
+    $("frame").classList.toggle("is-gray", state.gray);
+    $("thumb").classList.toggle("is-gray", state.gray);
+    $("codes").textContent = "Backdrop " + state.bg + " · Blazer " + state.blazer + " · Shirt " + state.shirt;
+
+    var res = evaluate(state, state.gfx);
+    var good = res.filter(function (r) { return r.s === "good"; }).length;
+    var flagged = res.length - good;
+    $("tally").textContent = flagged ? good + " clear · " + flagged + " to look at" : "All " + res.length + " clear";
+    $("check-list").innerHTML = res.map(function (r) {
+      var word = r.s === "good" ? "Good" : r.s === "warn" ? "Check" : "Problem";
+      return '<li class="chk ' + r.s + '"><span class="pill">' + word + "</span><div><strong>" + r.t + "</strong><span>" + r.d + "</span></div></li>";
+    }).join("");
+    $("relation").innerHTML = relationText(state);
+    syncControls(skipTextFor);
+    updateCurrent();
+    persist();
+  }
+
+  /* ---------- Saved looks ----------
+     Stored in the page's shared database ("looks" collection) when the page runs on claude.ai,
+     so they sync across devices and teammates. Falls back to this browser's storage elsewhere. */
+  var COMBO_KEYS = ["bg", "blazer", "shirt", "skin", "beard"];
+  var VIEW_ONLY_MSG = "You can see saved looks but not change them. Ask the page owner for Contributor access.";
+  var store = { mode: "starting", coll: null, canWrite: true, migrated: false };
+  var pendingSavedRender = false;
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; });
+  }
+  function lookName(l) {
+    var bz = swatchName("blazer", l.blazer), bg = swatchName("bg", l.bg);
+    if (bz && bg) {
+      var s = bz.replace("Reference ", "") + " on " + bg.replace("Reference ", "").toLowerCase();
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+    return "Custom look";
+  }
+  function cleanLook(raw, id) {
+    if (!raw || typeof raw !== "object") return null;
+    var l = {};
+    for (var i = 0; i < COMBO_KEYS.length; i++) {
+      var k = COMBO_KEYS[i], v = normHex(raw[k]) || (k === "skin" || k === "beard" ? DEFAULTS[k] : null);
+      if (!v) return null;
+      l[k] = v;
+    }
+    l.style = Object.prototype.hasOwnProperty.call(STYLE_NAMES, raw.style) ? raw.style : "collar";
+    l.name = typeof raw.name === "string" && raw.name.trim() ? raw.name.trim().slice(0, 60) : lookName(l);
+    l.createdAt = typeof raw.createdAt === "number" ? raw.createdAt : 0;
+    l.id = id || (typeof raw.id === "string" ? raw.id : "local-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
+    return l;
+  }
+  function bodyOf(l) {
+    return { name: l.name, bg: l.bg, blazer: l.blazer, shirt: l.shirt, skin: l.skin, beard: l.beard, style: l.style, createdAt: l.createdAt };
+  }
+  function sameCombo(a, b) {
+    return COMBO_KEYS.every(function (k) { return a[k] === b[k]; }) && a.style === b.style;
+  }
+  function currentSaved() { return saved.find(function (l) { return sameCombo(l, state); }); }
+
+  localSaved = storedSaved.map(function (r) { return cleanLook(r); }).filter(Boolean);
+
+  function syncNoteText() {
+    if (store.mode === "starting" || store.mode === "loading") return "Loading…";
+    if (store.mode === "db") return store.canWrite ? "Synced across your devices" : "View only";
+    if (store.mode === "unreachable") return "Can't reach saved looks yet; showing this browser's";
+    return "Saved in this browser only";
+  }
+
+  function renderSaved() {
+    var g = $("saved-grid");
+    if (g.contains(document.activeElement) && document.activeElement.classList.contains("look-name")) { pendingSavedRender = true; return; }
+    pendingSavedRender = false;
+    $("saved-count").textContent = saved.length ? "(" + saved.length + ")" : "";
+    $("sync-note").textContent = syncNoteText();
+    $("btn-copy-saved").hidden = !saved.length;
+    $("btn-dl-sheet").hidden = !saved.length;
+    $("btn-dl-all").hidden = !saved.length;
+    if (!saved.length) {
+      g.innerHTML = '<p class="empty">' + (store.mode === "starting" || store.mode === "loading"
+        ? "Loading saved looks…"
+        : "Nothing saved yet. When a combination works, press <b>Save look</b> (or the S key) to keep it here. Click a saved look to load it again.") + "</p>";
+      updateCurrent();
+      return;
+    }
+    var ro = store.coll && !store.canWrite;
+    g.innerHTML = saved.map(function (l, i) {
+      var res = evaluate(l, false), flagged = res.filter(function (r) { return r.s !== "good"; });
+      var worst = flagged.some(function (r) { return r.s === "bad"; }) ? "bad" : flagged.length ? "warn" : "good";
+      var score = flagged.length ? flagged.length + " to look at" : "All checks clear";
+      var nm = escapeHtml(l.name), id = escapeHtml(l.id);
+      return '<div class="look" data-id="' + id + '">' +
+        '<button type="button" class="load" data-load="' + id + '" aria-label="Load ' + nm + '"><div class="mini">' +
+        hostSVG(l, { uid: "s" + i + "-", framing: "center", style: l.style, gfx: false }) + "</div></button>" +
+        '<div class="look-body">' +
+        '<input class="look-name" id="name-' + i + '" data-name="' + id + '" value="' + nm + '" maxlength="60" aria-label="Name for this look"' + (ro ? " readonly" : "") + ">" +
+        '<div class="look-foot"><span class="dots" aria-label="Backdrop ' + l.bg + ", blazer " + l.blazer + ", shirt " + l.shirt + '">' +
+        '<span class="dot" style="background:' + l.bg + '" title="Backdrop ' + l.bg + '"></span><span class="dot" style="background:' + l.blazer + '" title="Blazer ' + l.blazer + '"></span><span class="dot" style="background:' + l.shirt + '" title="Shirt ' + l.shirt + '"></span></span>' +
+        '<span class="look-score ' + worst + '">' + score + "</span></div>" +
+        '<div class="look-foot"><span class="look-style">' + STYLE_NAMES[l.style] + '</span><span class="look-actions">' +
+        '<button type="button" class="remove dl-only" data-dl="' + id + '" aria-label="Download ' + nm + ' as an image">Download</button>' +
+        (ro ? "" : '<button type="button" class="remove" data-rm="' + id + '" aria-label="Remove ' + nm + '">Remove</button>') + "</span></div>" +
+        "</div></div>";
+    }).join("");
+    updateCurrent();
+  }
+
+  function updateCurrent() {
+    var cur = currentSaved();
+    document.querySelectorAll("#saved-grid .look").forEach(function (el) { el.classList.toggle("is-current", !!cur && el.dataset.id === cur.id); });
+    $("btn-save").setAttribute("aria-pressed", cur ? "true" : "false");
+    $("save-label").textContent = cur ? "Saved" : "Save look";
+  }
+
+  function say(msg, undo) {
+    var el = $("status");
+    el.textContent = msg;
+    if (undo) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "linkbtn"; b.textContent = "Undo";
+      b.addEventListener("click", function () { el.textContent = ""; undo(); });
+      el.appendChild(b);
+    }
+  }
+
+  // One write at a time per document; retry once on a transient error.
+  function write(fn, okMsg, retried) {
+    return fn().then(function () { if (okMsg) say(okMsg); return true; }, function (e) {
+      var code = e && e.code;
+      if (code === "unavailable" && !retried) {
+        return new Promise(function (r) { setTimeout(r, 400 + Math.random() * 600); }).then(function () { return write(fn, okMsg, true); });
+      }
+      if (code === "invalid_argument") { store.canWrite = false; renderSaved(); say(VIEW_ONLY_MSG); }
+      else if (code === "quota_exceeded") say("Saved looks are full. Remove a few to save more.");
+      else if (code === "revoked") say("Saved looks aren't available on this page right now.");
+      else say("Couldn't save that change. Try again in a moment.");
+      return false;
+    });
+  }
+  function useLocal() { return !store.coll; }
+  function commitLocal() { saved = localSaved.slice(); persist(); renderSaved(); }
+
+  function saveCurrent() {
+    var look = cleanLook({ bg: state.bg, blazer: state.blazer, shirt: state.shirt, skin: state.skin, beard: state.beard, style: state.style, createdAt: Date.now() });
+    if (useLocal()) {
+      localSaved.unshift(look); commitLocal();
+      say("Saved “" + look.name + "”" + (store.mode === "local" ? " in this browser." : "."));
+      return;
+    }
+    if (!store.canWrite) { say(VIEW_ONLY_MSG); return; }
+    var ref = store.coll.doc();
+    write(function () { return ref.set(bodyOf(look)); }, "Saved “" + look.name + "”.");
+  }
+
+  function removeLook(l) {
+    if (useLocal()) {
+      var idx = localSaved.findIndex(function (x) { return x.id === l.id; });
+      if (idx < 0) return;
+      localSaved.splice(idx, 1); commitLocal();
+      say("Removed “" + l.name + "”.", function () { localSaved.splice(Math.min(idx, localSaved.length), 0, l); commitLocal(); say("Restored “" + l.name + "”."); });
+      return;
+    }
+    if (!store.canWrite) { say(VIEW_ONLY_MSG); return; }
+    var ref = store.coll.doc(l.id), body = bodyOf(l);
+    write(function () { return ref.delete(); }, null).then(function (ok) {
+      if (ok) say("Removed “" + l.name + "”.", function () { write(function () { return ref.set(body); }, "Restored “" + l.name + "”."); });
+    });
+  }
+
+  function renameLook(id, value) {
+    var l = saved.find(function (x) { return x.id === id; });
+    if (!l) return;
+    var name = String(value || "").trim().slice(0, 60) || lookName(l);
+    if (name === l.name) return;
+    if (useLocal()) {
+      var t = localSaved.find(function (x) { return x.id === id; });
+      if (t) t.name = name;
+      commitLocal(); say("Renamed to “" + name + "”.");
+      return;
+    }
+    if (!store.canWrite) { say(VIEW_ONLY_MSG); return; }
+    write(function () { return store.coll.doc(id).update({ name: name }); }, "Renamed to “" + name + "”.");
+  }
+
+  function toggleSave() {
+    var cur = currentSaved();
+    if (cur) removeLook(cur); else saveCurrent();
+  }
+
+  var grid = $("saved-grid");
+  grid.addEventListener("click", function (e) {
+    var load = e.target.closest("[data-load]"), rm = e.target.closest("[data-rm]"), dl = e.target.closest("[data-dl]");
+    if (dl) { var d = saved.find(function (x) { return x.id === dl.dataset.dl; }); if (d) exportOne(d, dl); return; }
+    if (rm) { var r = saved.find(function (x) { return x.id === rm.dataset.rm; }); if (r) removeLook(r); return; }
+    if (load) {
+      var l = saved.find(function (x) { return x.id === load.dataset.load; });
+      if (!l) return;
+      COMBO_KEYS.forEach(function (k) { state[k] = l[k]; });
+      state.style = l.style;
+      render(); say("Loaded “" + l.name + "”.");
+    }
+  });
+  grid.addEventListener("change", function (e) {
+    if (e.target.classList.contains("look-name")) renameLook(e.target.dataset.name, e.target.value);
+  });
+  grid.addEventListener("keydown", function (e) {
+    if (e.target.classList.contains("look-name") && (e.key === "Enter" || e.key === "Escape")) {
+      if (e.key === "Escape") { var l = saved.find(function (x) { return x.id === e.target.dataset.name; }); if (l) e.target.value = l.name; }
+      e.target.blur();
+    }
+  });
+  grid.addEventListener("focusout", function () { setTimeout(function () { if (pendingSavedRender) renderSaved(); }, 0); });
+
+  $("btn-copy-saved").addEventListener("click", function () {
+    var txt = "Saved looks (Host Set Color Tester)\n" + saved.map(function (l, i) {
+      return (i + 1) + ". " + l.name + ": backdrop " + l.bg + ", blazer " + l.blazer + ", shirt " + l.shirt + " (" + STYLE_NAMES[l.style] + "), skin " + l.skin + ", beard " + l.beard;
+    }).join("\n");
+    try {
+      navigator.clipboard.writeText(txt).then(function () { say("Copied " + saved.length + " saved look" + (saved.length === 1 ? "" : "s") + "."); }, function () { say("Copying is blocked here."); });
+    } catch (e) { say("Copying is blocked here."); }
+  });
+
+  // Move looks saved in this browser by the earlier version into the page's storage, once.
+  function migrateLocal() {
+    if (store.migrated || !store.coll || !store.canWrite || !localSaved.length) return;
+    store.migrated = true;
+    var toMove = localSaved.filter(function (l) { return !saved.some(function (s) { return sameCombo(s, l); }); });
+    var chain = Promise.resolve(true), moved = 0;
+    toMove.forEach(function (l, i) {
+      chain = chain.then(function (ok) {
+        if (!ok) return false;
+        var body = bodyOf(l); body.createdAt = l.createdAt || Date.now() - (i + 1) * 1000;
+        return store.coll.doc().set(body).then(function () { moved++; return true; }, function () { return false; });
+      });
+    });
+    chain.then(function (ok) {
+      if (!ok) return;
+      localSaved = []; persist();
+      if (moved) say("Moved " + moved + " look" + (moved === 1 ? "" : "s") + " saved in this browser into the page, so they sync now.");
+    });
+  }
+
+  function startLocal(mode) {
+    store.mode = mode; store.coll = null;
+    saved = localSaved.slice();
+    renderSaved();
+  }
+
+  function initStore(attempt) {
+    var c = window.claude;
+    if (!c || typeof c.use !== "function") {
+      if ((attempt || 0) < 2) { setTimeout(function () { initStore((attempt || 0) + 1); }, 700); return; }
+      startLocal("local"); return;
+    }
+    store.mode = "loading"; renderSaved();
+    Promise.resolve().then(function () { return c.use("db"); }).catch(function () { return null; }).then(function (db) {
+      if (!db) { startLocal("local"); return; }
+      Promise.resolve().then(function () { return c.use("user"); }).catch(function () { return null; }).then(function (user) {
+        if (!user || typeof user.can !== "function") return null;
+        return Promise.resolve().then(function () { return user.can("data.write"); }).catch(function () { return null; });
+      }).then(function (canWrite) {
+        if (canWrite === false) store.canWrite = false;
+        var coll;
+        try { coll = db.collection("looks"); } catch (e) { startLocal("local"); return; }
+        store.coll = coll;
+        var timer = setTimeout(function () {
+          if (store.mode === "loading") { store.mode = "unreachable"; saved = localSaved.slice(); renderSaved(); }
+        }, 10000);
+        coll.orderBy("createdAt", "desc").limit(300).onSnapshot(function (snap) {
+          saved = snap.docs.map(function (d) { return d.exists ? cleanLook(d.data(), d.id) : null; }).filter(Boolean);
+          if (!snap.metadata.fromCache) { clearTimeout(timer); store.mode = "db"; migrateLocal(); }
+          else if (store.mode === "unreachable") { store.mode = "loading"; }
+          renderSaved();
+        }, function (err) {
+          clearTimeout(timer);
+          var code = err && err.code;
+          startLocal(code === "revoked" ? "local" : "unreachable");
+        });
+      });
+    });
+  }
+
+  function codesText() {
+    return [
+      "Backdrop: " + state.bg + (swatchName("bg", state.bg) ? " (" + swatchName("bg", state.bg) + ")" : ""),
+      "Blazer: " + state.blazer + (swatchName("blazer", state.blazer) ? " (" + swatchName("blazer", state.blazer) + ")" : ""),
+      "Shirt: " + state.shirt + (swatchName("shirt", state.shirt) ? " (" + swatchName("shirt", state.shirt) + ")" : "") + ", " + STYLE_NAMES[state.style],
+      "Skin: " + state.skin + " · Beard: " + state.beard
+    ].join("\n");
+  }
+
+  /* ---------- Image export (1920×1080 PNGs, contact sheet, zip) ---------- */
+  var EXPORT_W = 1920, EXPORT_H = 1080, SHEET_PAGE = 24;
+  var downloadsNs = null, exporting = false;
+
+  function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "look"; }
+  function loadSvgImage(str) {
+    return new Promise(function (res, rej) {
+      var img = new Image();
+      img.onload = function () { res(img); };
+      img.onerror = function () { rej(new Error("render")); };
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(str);
+    });
+  }
+  function canvasToBlob(cv) {
+    return new Promise(function (res, rej) { cv.toBlob(function (b) { if (b) res(b); else rej(new Error("encode")); }, "image/png"); });
+  }
+  function fontsReady() {
+    try {
+      return Promise.all(["800 60px Poppins", "700 40px Poppins", "600 24px Poppins", "400 20px Poppins", '500 17px "IBM Plex Mono"']
+        .map(function (f) { return document.fonts.load(f); })).catch(function () {});
+    } catch (e) { return Promise.resolve(); }
+  }
+  function lookImage(look, framing) {
+    var svg = hostSVG(look, { uid: "x", framing: framing, style: look.style, gfx: false })
+      .replace("<svg ", '<svg width="' + EXPORT_W + '" height="' + EXPORT_H + '" ');
+    return loadSvgImage(svg);
+  }
+  function renderFrame(look, framing, gfx) {
+    return lookImage(look, framing).then(function (img) {
+      var cv = document.createElement("canvas"); cv.width = EXPORT_W; cv.height = EXPORT_H;
+      var ctx = cv.getContext("2d");
+      ctx.drawImage(img, 0, 0, EXPORT_W, EXPORT_H);
+      if (gfx) drawBubble(ctx, look, framing, EXPORT_W / 1600);
+      return cv;
+    });
+  }
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function fitText(ctx, text, max) {
+    if (ctx.measureText(text).width <= max) return text;
+    var t = text;
+    while (t.length > 1 && ctx.measureText(t + "…").width > max) t = t.slice(0, -1);
+    return t + "…";
+  }
+  function renderSheet(looks, page, pages) {
+    var n = looks.length, cols = n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
+    var tileW = { 1: 1200, 2: 860, 3: 720, 4: 560 }[cols], tileH = Math.round(tileW * 9 / 16);
+    var capH = 122, pad = 56, gap = 36, headH = 132, rows = Math.ceil(n / cols);
+    var W = pad * 2 + cols * tileW + (cols - 1) * gap, H = headH + rows * (tileH + capH) + (rows - 1) * gap + pad;
+    var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    var ctx = cv.getContext("2d");
+    ctx.fillStyle = "#202020"; ctx.fillRect(0, 0, W, H);
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#ECECEC"; ctx.font = "700 40px Poppins, Arial, sans-serif";
+    ctx.fillText("Saved looks", pad, 78);
+    ctx.fillStyle = "#A3A3A3"; ctx.font = "400 20px Poppins, Arial, sans-serif";
+    var date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    ctx.fillText("Host Set Color Tester · " + date + (pages > 1 ? " · sheet " + page + " of " + pages : ""), pad, 112);
+    var chain = Promise.resolve();
+    looks.forEach(function (l, i) {
+      chain = chain.then(function () { return lookImage(l, "center"); }).then(function (img) {
+        var x = pad + (i % cols) * (tileW + gap), y = headH + Math.floor(i / cols) * (tileH + capH + gap), cy = y + tileH;
+        ctx.save(); roundRect(ctx, x, y, tileW, tileH, 10); ctx.clip(); ctx.drawImage(img, x, y, tileW, tileH); ctx.restore();
+        ctx.fillStyle = "#ECECEC"; ctx.font = "600 24px Poppins, Arial, sans-serif";
+        ctx.fillText(fitText(ctx, l.name, tileW), x, cy + 38);
+        var cx = x;
+        ctx.font = '500 17px "IBM Plex Mono", Menlo, monospace';
+        [l.bg, l.blazer, l.shirt].forEach(function (hex) {
+          ctx.fillStyle = hex; roundRect(ctx, cx, cy + 56, 18, 18, 4); ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1; ctx.stroke();
+          ctx.fillStyle = "#CFCFCF"; ctx.fillText(hex, cx + 26, cy + 71);
+          cx += 26 + ctx.measureText(hex).width + 22;
+        });
+        var res = evaluate(l, false), flagged = res.filter(function (r) { return r.s !== "good"; });
+        var meta = STYLE_NAMES[l.style].charAt(0).toUpperCase() + STYLE_NAMES[l.style].slice(1) + " · ";
+        ctx.font = "400 16px Poppins, Arial, sans-serif"; ctx.fillStyle = "#A3A3A3";
+        ctx.fillText(meta, x, cy + 104);
+        var mw = ctx.measureText(meta).width;
+        ctx.font = "600 16px Poppins, Arial, sans-serif";
+        ctx.fillStyle = flagged.some(function (r) { return r.s === "bad"; }) ? "#e8695c" : flagged.length ? "#e2b54e" : "#62c084";
+        ctx.fillText(flagged.length ? flagged.length + " to look at" : "All checks clear", x + mw, cy + 104);
+      });
+    });
+    return chain.then(function () { return cv; });
+  }
+
+  function offer(filename, blob, okMsg) {
+    return downloadsNs.save({ filename: filename, data: blob }).then(function () { say(okMsg); }, function (e) {
+      var code = e && e.code;
+      if (code === "declined") say("Download canceled.");
+      else if (code === "rate_limited") say("Another download prompt is already open. Finish that one first.");
+      else if (code === "too_large") say("That file is too large. Try the contact sheet or single looks instead.");
+      else { say("Downloads aren't available here."); document.body.classList.remove("can-download"); }
+    });
+  }
+  function runExport(label, work) {
+    if (exporting || !downloadsNs) return;
+    exporting = true;
+    document.querySelectorAll(".dl-only").forEach(function (b) { b.disabled = true; });
+    say(label);
+    fontsReady().then(work).catch(function () { say("Couldn't create the image. Try again."); }).then(function () {
+      exporting = false;
+      document.querySelectorAll(".dl-only").forEach(function (b) { b.disabled = false; });
+    });
+  }
+  function exportOne(look) {
+    runExport("Preparing “" + look.name + "”…", function () {
+      return renderFrame(look, "center", false).then(canvasToBlob).then(function (b) {
+        return offer(slugify(look.name) + ".png", b, "Downloaded “" + look.name + "”.");
+      });
+    });
+  }
+  function exportCurrent() {
+    var cur = currentSaved(), name = cur ? cur.name : lookName(state);
+    var look = Object.assign({}, state), framing = state.framing, gfx = state.gfx;
+    runExport("Preparing the image…", function () {
+      return renderFrame(look, framing, gfx).then(canvasToBlob).then(function (b) {
+        return offer(slugify(name) + (framing === "third" ? "-third" : "") + ".png", b, "Downloaded the current look.");
+      });
+    });
+  }
+  function exportSheet() {
+    if (!saved.length) return;
+    var list = saved.slice(0, SHEET_PAGE), more = saved.length > SHEET_PAGE;
+    runExport("Building the contact sheet…", function () {
+      return renderSheet(list, 1, 1).then(canvasToBlob).then(function (b) {
+        return offer("saved-looks-contact-sheet.png", b, more
+          ? "Downloaded a contact sheet of your newest " + SHEET_PAGE + " looks. Download all includes every look."
+          : "Downloaded the contact sheet.");
+      });
+    });
+  }
+  function exportAll() {
+    if (!saved.length) return;
+    if (typeof window.JSZip !== "function") { say("The zip tool didn't load. Download looks one at a time, or reload the page."); return; }
+    var list = saved.slice();
+    runExport("Preparing " + list.length + " images…", function () {
+      var zip = new window.JSZip(), chain = Promise.resolve();
+      list.forEach(function (l, i) {
+        chain = chain.then(function () {
+          say("Preparing image " + (i + 1) + " of " + list.length + "…");
+          return renderFrame(l, "center", false).then(canvasToBlob);
+        }).then(function (b) { zip.file(String(i + 1).padStart(2, "0") + "-" + slugify(l.name) + ".png", b); });
+      });
+      var pages = [];
+      for (var i = 0; i < list.length; i += SHEET_PAGE) pages.push(list.slice(i, i + SHEET_PAGE));
+      pages.forEach(function (pg, pi) {
+        chain = chain.then(function () { say("Building the contact sheet…"); return renderSheet(pg, pi + 1, pages.length); })
+          .then(canvasToBlob).then(function (b) { zip.file(pages.length > 1 ? "contact-sheet-" + (pi + 1) + ".png" : "contact-sheet.png", b); });
+      });
+      return chain.then(function () { say("Zipping…"); return zip.generateAsync({ type: "blob" }); }).then(function (blob) {
+        return offer("saved-looks.zip", blob, "Downloaded " + list.length + " look" + (list.length === 1 ? "" : "s") + " and the contact sheet.");
+      });
+    });
+  }
+  // Outside claude.ai (e.g. GitHub Pages) there is no download capability, so use a normal browser download.
+  var anchorDownloads = {
+    save: function (req) {
+      return new Promise(function (res) {
+        var blob = req.data instanceof Blob ? req.data : new Blob([req.data]);
+        var url = URL.createObjectURL(blob), a = document.createElement("a");
+        a.href = url; a.download = req.filename; a.rel = "noopener";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+        res({ status: "saved" });
+      });
+    }
+  };
+  function initDownloads(attempt) {
+    var c = window.claude;
+    if (!c || typeof c.use !== "function") {
+      if ((attempt || 0) < 2) { setTimeout(function () { initDownloads((attempt || 0) + 1); }, 700); return; }
+      if (window.top === window.self) { downloadsNs = anchorDownloads; document.body.classList.add("can-download"); }
+      return;
+    }
+    Promise.resolve().then(function () { return c.use("downloads"); }).catch(function () { return null; }).then(function (d) {
+      if (!d || typeof d.save !== "function") return;
+      downloadsNs = d;
+      document.body.classList.add("can-download");
+    });
+  }
+
+  /* Shuffle: random camera-friendly colors, keeping the best-scoring candidate */
+  function randomFor(key) {
+    var R = Math.random, H = R() * 360;
+    if (key === "bg") return fromOklch(0.42 + R() * 0.5, 0.015 + R() * 0.08, H);
+    if (key === "blazer") return fromOklch(0.27 + R() * 0.31, 0.02 + R() * 0.1, H);
+    if (R() < 0.75) return fromOklch(0.62 + R() * 0.33, R() * 0.06, H);
+    return fromOklch(0.26 + R() * 0.2, R() * 0.06, H);
+  }
+  function shuffle() {
+    var keys = ["bg", "blazer", "shirt"].filter(function (k) { return !state.locks[k]; });
+    if (!keys.length) { say("All three colors are locked. Unlock one to shuffle it."); return; }
+    var best = null, bestScore = -1;
+    for (var i = 0; i < 400; i++) {
+      var cand = Object.assign({}, state);
+      keys.forEach(function (k) { cand[k] = randomFor(k); });
+      var res = evaluate(cand, false);
+      var score = res.reduce(function (a, r) { return a + (r.s === "good" ? 2 : r.s === "warn" ? 1 : 0); }, 0);
+      if (score > bestScore) { best = cand; bestScore = score; }
+      if (score === res.length * 2) break;
+    }
+    keys.forEach(function (k) { state[k] = best[k]; });
+    render();
+    var locked = ["bg", "blazer", "shirt"].filter(function (k) { return state.locks[k]; }).map(function (k) { return CONTROLS[k].label.toLowerCase(); });
+    say("Shuffled " + keys.map(function (k) { return CONTROLS[k].label.toLowerCase(); }).join(", ") + (locked.length ? " (kept " + locked.join(" and ") + ")." : "."));
+  }
+
+  /* ---------- Wire up ---------- */
+  KEYS.forEach(buildControl);
+
+  $("presets").innerHTML = PRESETS.map(function (p, i) {
+    return '<button type="button" class="preset" id="preset-' + i + '" aria-pressed="false"><span class="trio" aria-hidden="true"><span style="background:' + p.bg + '"></span><span style="background:' + p.blazer + '"></span><span style="background:' + p.shirt + '"></span></span>' + p.name + "</button>";
+  }).join("");
+  PRESETS.forEach(function (p, i) {
+    $("preset-" + i).addEventListener("click", function () {
+      state.bg = p.bg; state.blazer = p.blazer; state.shirt = p.shirt; state.style = p.style;
+      render(); say("Loaded preset: " + p.name + ".");
+    });
+  });
+
+  document.querySelectorAll("[data-framing]").forEach(function (b) { b.addEventListener("click", function () { state.framing = b.dataset.framing; render(); }); });
+  document.querySelectorAll("[data-style]").forEach(function (b) { b.addEventListener("click", function () { state.style = b.dataset.style; render(); }); });
+  $("toggle-gray").addEventListener("click", function () { state.gray = !state.gray; render(); });
+  $("toggle-gfx").addEventListener("click", function () {
+    state.gfx = !state.gfx;
+    if (state.gfx) $("gfx-details").open = true;
+    render();
+  });
+  $("btn-shuffle").addEventListener("click", shuffle);
+  $("btn-save").addEventListener("click", toggleSave);
+  $("btn-dl-current").addEventListener("click", exportCurrent);
+  $("btn-dl-sheet").addEventListener("click", exportSheet);
+  $("btn-dl-all").addEventListener("click", exportAll);
+  document.addEventListener("keydown", function (e) {
+    if ((e.key === "s" || e.key === "S") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      var t = e.target, tag = t && t.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (t && t.isContentEditable)) return;
+      e.preventDefault(); toggleSave();
+    }
+  });
+  $("btn-copy").addEventListener("click", function () {
+    var txt = codesText();
+    try {
+      navigator.clipboard.writeText(txt).then(function () { say("Hex codes copied."); }, function () { say("Copying is blocked here. " + txt.replace(/\n/g, " · ")); });
+    } catch (e) { say("Copying is blocked here. " + txt.replace(/\n/g, " · ")); }
+  });
+
+  render();
+  renderSaved();
+  initStore(0);
+  initDownloads(0);
+  if (state.gfx) $("gfx-details").open = true;
+  // Re-render once Poppins is ready so bubble widths are measured with the real font.
+  try {
+    Promise.all([document.fonts.load("800 60px Poppins"), document.fonts.load("600 46px Poppins")]).then(function () { render(); }, function () {});
+  } catch (e) { /* font loading API unavailable */ }
+})();
+</script>
+</body>
+</html>
