@@ -426,7 +426,7 @@ details .inner { display: grid; gap: 14px; }
     skin: { label: "Skin tone", group: "host", sw: [
       ["Host (fair, pink)", "#DDA99E"], ["Photo (fair, rosy)", "#D29B92"], ["Fair, warm", "#E3B49A"], ["Light, olive", "#CDA184"], ["Light-medium", "#C48F72"], ["Medium", "#A9765A"]] },
     beard: { label: "Beard", group: "host", sw: [
-      ["Reference ginger-brown", "#8A5F48"], ["Auburn", "#7B3F2B"], ["Dark brown", "#4A3328"], ["Black", "#24201F"], ["Salt and pepper", "#86817C"], ["Blond", "#B4935F"]] },
+      ["Host (warm brown)", "#976F59"], ["Auburn", "#7B3F2B"], ["Dark brown", "#4A3328"], ["Black", "#24201F"], ["Salt and pepper", "#86817C"], ["Blond", "#B4935F"]] },
     accent: { label: "Bubble color", group: "gfx", sw: [
       ["Amber", "#F2B33D"], ["Coral", "#F2694B"], ["Teal", "#25B3A7"], ["Sky", "#4C8DF0"], ["Magenta", "#D9467E"], ["Lime", "#A8D64B"]] },
     dark: { label: "Brand dark", group: "gfx", sw: [
@@ -436,16 +436,16 @@ details .inner { display: grid; gap: 14px; }
   var STYLE_NAMES = { collar: "open collar", crew: "crew neck", turtle: "turtleneck" };
 
   var PRESETS = [
-    { name: "Reference photo", bg: "#3F646A", blazer: "#4A2230", shirt: "#8C5C69", style: "collar" },
-    { name: "Cream + navy", bg: "#EDE3D3", blazer: "#26344F", shirt: "#F2EFE8", style: "collar" },
-    { name: "Light sand + olive", bg: "#F2E4C4", blazer: "#5B5E3A", shirt: "#F2EFE8", style: "crew" },
-    { name: "Pale blue + charcoal", bg: "#DCE5EC", blazer: "#393B40", shirt: "#C9D8E8", style: "collar" },
-    { name: "Pale sage + rust", bg: "#E0E7D8", blazer: "#8C4A2F", shirt: "#EEE4CF", style: "collar" },
-    { name: "Deep green + camel", bg: "#2F4A3F", blazer: "#A57A52", shirt: "#F2EFE8", style: "turtle" }
+    { name: "Branded - light on dark", bg: "#3D4043", blazer: "#6E7177", shirt: "#C99A3E", style: "collar", skin: "#DDA99E", beard: "#976F59" },
+    { name: "Branded - dark on light", bg: "#888C91", blazer: "#393B40", shirt: "#C99A3E", style: "collar", skin: "#DDA99E", beard: "#976F59" },
+    { name: "Rust on deep green 1", bg: "#2F4A3F", blazer: "#8C4A2F", shirt: "#27324A", style: "collar", skin: "#DDA99E", beard: "#976F59" },
+    { name: "Rust on deep green 2", bg: "#2F4A3F", blazer: "#8C4A2F", shirt: "#F2EFE8", style: "collar", skin: "#DDA99E", beard: "#976F59" },
+    { name: "Red on teal 1", bg: "#4E8088", blazer: "#5B1A1A", shirt: "#27324A", style: "collar", skin: "#DDA99E", beard: "#976F59" },
+    { name: "Red on teal 2", bg: "#4E8088", blazer: "#5B1A1A", shirt: "#F2EFE8", style: "collar", skin: "#DDA99E", beard: "#976F59" }
   ];
 
   var DEFAULTS = {
-    bg: "#3F646A", blazer: "#4A2230", shirt: "#8C5C69", skin: "#DDA99E", beard: "#8A5F48",
+    bg: "#3D4043", blazer: "#6E7177", shirt: "#C99A3E", skin: "#DDA99E", beard: "#976F59",
     accent: "#F2B33D", dark: "#1E2632",
     style: "collar", framing: "center", gray: false, gfx: false,
     locks: { bg: false, blazer: false, shirt: false }
@@ -1283,6 +1283,8 @@ details .inner { display: grid; gap: 14px; }
   PRESETS.forEach(function (p, i) {
     $("preset-" + i).addEventListener("click", function () {
       state.bg = p.bg; state.blazer = p.blazer; state.shirt = p.shirt; state.style = p.style;
+      if (p.skin) state.skin = p.skin;
+      if (p.beard) state.beard = p.beard;
       render(); say("Loaded preset: " + p.name + ".");
     });
   });
